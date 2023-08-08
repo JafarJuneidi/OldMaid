@@ -7,6 +7,9 @@ import java.util.List;
 public class OldMaid {
     public static void main(String[] args) throws InterruptedException {
         int numberOfPlayers = Integer.parseInt(args[0]);
+        if (numberOfPlayers < 2 || numberOfPlayers > 26) {
+            System.out.println("Players should be 2 - 26");
+        }
         List<Card> deck = createDeck();
 
         Collections.shuffle(deck);
