@@ -1,17 +1,18 @@
 package org.example;
+
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class PlayersTable {
-    private final List<Player> players;
+    public final List<Player> players;
 
     public PlayersTable(int numPlayers, List<Card> deck) {
         players = new ArrayList<>(numPlayers);
         for (int i = 0; i < numPlayers; ++i) {
-            Player player = new Player(this, i+1, createHand(deck, numPlayers));
+            Player player = new Player(this, i + 1);
             players.add(player);
         }
+        createHand(deck);
     }
 
     public void startGame() {
@@ -21,39 +22,37 @@ public class PlayersTable {
             notifyAll();
         }
     }
-    public void stopGame() {
-        players.forEach(Player::gameOver);
-        synchronized (this) {
-            notifyAll();
-        }
-        players.forEach(p-> {
-            try {
-                p.join();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        players.forEach(Player::printState);
-    }
 
     public void removePlayer(Player player) {
         players.remove(player);
         System.out.println("Player " + player.getPlayerId() + " has been removed!");
     }
 
-    public Player getNextPlayer(int currentPlayerId) {
-        int nextPlayer = (currentPlayerId -1 + 1) % players.size();
-        return players.get(nextPlayer);
+    public Player getNextPlayer(Player currentPlayer) {
+        int currentPlayerIndex = players.indexOf(currentPlayer);
+        int nextPlayerIndex = (currentPlayerIndex + 1) % players.size();
+        return players.get(nextPlayerIndex);
     }
 
-    private static List<Card> createHand(List<Card> deck, int numPlayers) {
-        Iterator<Card> deckIterator = deck.iterator();
-        List<Card> hand = new ArrayList<>();
+    public Player getPreviousPlayer(Player currentPlayer) {
+        int currentPlayerIndex = players.indexOf(currentPlayer);
+        int previousPlayerIndex = Math.floorMod(currentPlayerIndex - 1, players.size());
+        return players.get(previousPlayerIndex);
+    }
 
-        while (hand.size() < (20 + 1) / numPlayers) {
-            hand.add(deckIterator.next());
-            deckIterator.remove();
+    public void createHand(List<Card> deck) {
+        int playerCount = players.size();
+        int cardsPerPlayer = deck.size() / playerCount;
+        int extraCards = deck.size() % playerCount;
+
+        for (Player player : players) {
+            for (int i = 0; i < cardsPerPlayer; i++) {
+                player.receiveCard(deck.remove(0));
+            }
+            if (extraCards > 0) {
+                player.receiveCard(deck.remove(0));
+                extraCards--;
+            }
         }
-        return hand;
     }
 }

@@ -1,53 +1,51 @@
 package org.example;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
 public class Player extends Thread {
     private final PlayersTable playersTable;
+    private final int playerId;
+    private final List<Card> hand;
+    private boolean isMyTurn;
+
+    public Player(PlayersTable playersTable, int playerId) {
+        this.playersTable = playersTable;
+        this.playerId = playerId;
+        this.hand = new ArrayList<>();
+        this.isMyTurn = false;
+    }
 
     public int getPlayerId() {
         return playerId;
     }
 
-    private final int playerId;
-    public List<Card> hand;
-    private boolean isMyTurn;
-    private boolean gameOver;
-
-    public Player(PlayersTable playersTable, int playerId, List<Card> hand) {
-        this.playersTable = playersTable;
-        this.playerId = playerId;
-        this.hand = hand;
-        this.isMyTurn = false;
-        this.gameOver = false;
-    }
-
     @Override
     public void run() {
-        while (!gameOver) {
+        while (!hand.isEmpty()) {
             try {
                 synchronized (playersTable) {
                     if (isMyTurn) {
+                        System.out.println("Player " + playerId + " turn");
+                        Player previousPlayer = playersTable.getPreviousPlayer(this);
+                        while (previousPlayer.hand.isEmpty()) {
+                            playersTable.wait();
+                            previousPlayer = previousPlayer.playersTable.getPreviousPlayer(this);
+                        }
+                        receiveCard(previousPlayer.pickCard());
+
                         checkForPairs();
 
-                        Thread.sleep(1000);
-
-                        Player nextPlayer = playersTable.getNextPlayer(playerId);
-                        nextPlayer.receiveCard(pickCard());
-                        isMyTurn = false;
-                        nextPlayer.playTurn();
-
-                        if (hand.isEmpty()) {
-                            playersTable.removePlayer(this);
+                        if (playersTable.players.size() == 1) {
+                            System.out.println("Player " + playerId + " is the Old Maid!");
                             return;
                         }
 
+                        isMyTurn = false;
+                        Player nextPlayer = playersTable.getNextPlayer(this);
+                        nextPlayer.playTurn();
                         playersTable.notifyAll();
-
-//                        if (playersTable.numberOfPlayers() == 1 && hand.size() == 1 && hand.get(0).suit.equals("Joker")) {
-//                            playersTable.stopGame();
-//                        }
                     } else {
                         playersTable.wait();
                     }
@@ -55,6 +53,15 @@ public class Player extends Thread {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        }
+        synchronized (playersTable) {
+            if (isMyTurn) {
+                isMyTurn = false;
+                Player nextPlayer = playersTable.getNextPlayer(this);
+                nextPlayer.playTurn();
+            }
+            playersTable.removePlayer(this);
+            playersTable.notifyAll();
         }
     }
 
@@ -74,29 +81,17 @@ public class Player extends Thread {
                 for (int j = i + 1; j < hand.size(); j++) {
                     if (hand.get(i).matches(hand.get(j))) {
                         System.out.println("Player " + playerId + " discarded a pair.");
-                        System.out.println(hand.get(j) + " " + hand.get(i));
-                        hand.remove(j);  // Always remove the latter element first
+                        hand.remove(j);
                         hand.remove(i);
-                        continue OUTER_LOOP;  // Go back and start checking from the beginning
+                        continue OUTER_LOOP;
                     }
                 }
             }
-            break;  // Exit the OUTER_LOOP if no pairs are found
+            break;
         }
     }
 
     public void playTurn() {
         isMyTurn = true;
-        System.out.println("Turn switched to player " + playerId);
-        System.out.println("Hand: " + hand);
-    }
-
-    public void gameOver() {
-        gameOver = true;
-    }
-
-    public void printState() {
-        System.out.println("Player " + playerId + (isMyTurn ? " has turn." : " does NOT have turn."));
     }
 }
-

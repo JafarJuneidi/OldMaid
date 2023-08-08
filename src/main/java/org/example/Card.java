@@ -1,5 +1,7 @@
 package org.example;
 
+import java.util.Objects;
+
 public class Card {
     String value;
     String suit;
@@ -17,10 +19,10 @@ public class Card {
     }
 
     @Override
-    public String toString() {
-        return "Card{" +
-                "value='" + value + '\'' +
-                ", suit='" + suit + '\'' +
-                '}';
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Card card = (Card) o;
+        return Objects.equals(value, card.value) && Objects.equals(suit, card.suit);
     }
 }
